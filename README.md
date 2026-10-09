@@ -3,7 +3,7 @@
 A near-black boot splash. The Daedric script is real (rendered from the
 SIL-OFL font OMW Ayembedt by Georg Duffner), so each inscription is a readable phrase.
 
-![boot](screenshots/boot.png)
+![boot](screenshots/boot.jpg)
 
 *The image above is composed from the theme's own images at 62% progress, using the
 same coordinates as the script.*
