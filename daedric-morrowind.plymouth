@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=daedric-morrowind
+Description=Morrowind shrine boot splash: counter-rotating rings of Daedric script around a pulsing rune, inscription igniting with boot progress
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/daedric-morrowind
+ScriptFile=/usr/share/plymouth/themes/daedric-morrowind/daedric-morrowind.script

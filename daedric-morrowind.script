@@ -1,0 +1,221 @@
+# daedric-morrowind — Plymouth boot splash
+# A layered sigil: static circles, two counter-rotating groups (tick ring +
+# outer Daedric script + bronze star; inner script + orbiting embers + blood
+# star), ripples spreading from a breathing rune. The inscription below
+# ignites rune by rune as boot progresses. All text is
+# pre-rendered to PNG (tools/build-assets.py), so no font is needed in the
+# initramfs. Layout is authored for 1080p and scaled by window height.
+
+Window.SetBackgroundTopColor(0.024, 0.020, 0.020);
+Window.SetBackgroundBottomColor(0.024, 0.020, 0.020);
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+OX = Window.GetX();
+OY = Window.GetY();
+s = H / 1080;
+CX = OX + W / 2;
+
+fun load(name) {
+    local.img = Image(name);
+    if (global.s != 1)
+        img = img.Scale(Math.Int(img.GetWidth() * global.s), Math.Int(img.GetHeight() * global.s));
+    return img;
+}
+
+fun centered(img, cy, z) {
+    local.sp = Sprite(img);
+    sp.SetPosition(global.CX - img.GetWidth() / 2, cy - img.GetHeight() / 2, z);
+    return sp;
+}
+
+halting = 0;
+mode = Plymouth.GetMode();
+if (mode == "shutdown" || mode == "reboot") halting = 1;
+
+# ---- background -----------------------------------------------------------
+bg_image = Image("bg.png").Scale(W, H);
+bg_sprite = Sprite(bg_image);
+bg_sprite.SetPosition(OX, OY, -100);
+
+# ---- sigil ----------------------------------------------------------------
+sigil_y = OY + H * 0.37;
+glow_image = load("glow.png");
+glow_sprite = centered(glow_image, sigil_y, 1);
+static_image = load("sigil_static.png");
+static_sprite = centered(static_image, sigil_y, 2);
+outer_image = load("ring_outer.png");
+outer_sprite = centered(outer_image, sigil_y, 3);
+inner_image = load("ring_inner.png");
+inner_sprite = centered(inner_image, sigil_y, 4);
+
+RIPPLE_FRAMES = 14;
+RIPPLE_TICKS = 320;                       # 6.4 s per ripple at 50 Hz
+for (i = 0; i < RIPPLE_FRAMES; i++) {
+    if (i < 10) ripple_image[i] = load("ripple_0" + i + ".png");
+    else ripple_image[i] = load("ripple_" + i + ".png");
+}
+ripple_a = centered(ripple_image[0], sigil_y, 5);
+ripple_b = centered(ripple_image[0], sigil_y, 5);
+ripple_b.SetOpacity(0);
+ripple_a_t = 0;
+ripple_b_t = 0 - RIPPLE_TICKS / 2;        # second ripple starts half a cycle later
+ripple_a_shown = 0;
+ripple_b_shown = 0 - 1;
+
+ghost_image = load("rune_ghost.png");
+ghost_sprite = centered(ghost_image, sigil_y, 6);
+rune_image = load("rune.png");
+rune_sprite = centered(rune_image, sigil_y, 7);
+
+# ---- inscription + bar ----------------------------------------------------
+line_y = OY + H * 0.735;
+if (halting) {
+    lit_image = load("line_halt_lit.png");
+    dim_image = load("line_halt_dim.png");
+    cap_image = load("cap_halt.png");
+} else {
+    lit_image = load("line_boot_lit.png");
+    dim_image = load("line_boot_dim.png");
+    cap_image = load("cap_boot.png");
+}
+dim_sprite = centered(dim_image, line_y, 5);
+lit_sprite = Sprite();
+lit_sprite.SetPosition(CX - lit_image.GetWidth() / 2, line_y - lit_image.GetHeight() / 2, 6);
+cap_sprite = centered(cap_image, line_y + 62 * s, 5);
+
+frame_image = load("bar_frame.png");
+frame_sprite = centered(frame_image, line_y + 104 * s, 5);
+fill_image = load("bar_fill.png");
+fill_sprite = Sprite();
+fill_sprite.SetPosition(CX - fill_image.GetWidth() / 2, line_y + 104 * s - fill_image.GetHeight() / 2, 6);
+
+# ---- passphrase prompt ----------------------------------------------------
+pw_y = OY + H * 0.75;
+plate_image = load("pw_plate.png");
+plate_sprite = centered(plate_image, pw_y, 10);
+plate_sprite.SetOpacity(0);
+pwcap_image = load("cap_pw.png");
+pwcap_sprite = centered(pwcap_image, pw_y - plate_image.GetHeight() / 2 - 22 * s, 10);
+pwcap_sprite.SetOpacity(0);
+MAX_BULLETS = 12;
+for (i = 0; i < MAX_BULLETS; i++) {
+    if (i < 10) bullet_image[i] = load("bullet_0" + i + ".png");
+    else bullet_image[i] = load("bullet_" + i + ".png");
+    bullet_sprite[i] = Sprite(bullet_image[i]);
+    bullet_sprite[i].SetOpacity(0);
+}
+prompting = 0;
+
+fun show_progress_widgets(alpha) {
+    dim_sprite.SetOpacity(alpha);
+    lit_sprite.SetOpacity(alpha);
+    cap_sprite.SetOpacity(alpha);
+    frame_sprite.SetOpacity(alpha);
+    fill_sprite.SetOpacity(alpha);
+}
+
+fun password_callback(prompt, bullets) {
+    global.prompting = 1;
+    show_progress_widgets(0);
+    plate_sprite.SetOpacity(1);
+    pwcap_sprite.SetOpacity(1);
+    local.n = bullets;
+    if (n > MAX_BULLETS) n = MAX_BULLETS;
+    local.step = 38 * global.s;
+    local.x0 = global.CX - (n * step) / 2;
+    for (i = 0; i < MAX_BULLETS; i++) {
+        if (i < n) {
+            bullet_sprite[i].SetPosition(x0 + i * step + (step - bullet_image[i].GetWidth()) / 2,
+                                         global.pw_y - bullet_image[i].GetHeight() / 2, 11);
+            bullet_sprite[i].SetOpacity(1);
+        } else {
+            bullet_sprite[i].SetOpacity(0);
+        }
+    }
+}
+
+fun normal_callback() {
+    global.prompting = 0;
+    plate_sprite.SetOpacity(0);
+    pwcap_sprite.SetOpacity(0);
+    for (i = 0; i < MAX_BULLETS; i++) bullet_sprite[i].SetOpacity(0);
+    show_progress_widgets(1);
+}
+
+Plymouth.SetDisplayPasswordFunction(password_callback);
+Plymouth.SetDisplayNormalFunction(normal_callback);
+
+# ---- messages -------------------------------------------------------------
+message_sprite = Sprite();
+fun message_callback(text) {
+    local.img = Image.Text(text, 0.79, 0.64, 0.36);
+    message_sprite.SetImage(img);
+    message_sprite.SetPosition(global.CX - img.GetWidth() / 2, global.OY + global.H * 0.93, 12);
+}
+Plymouth.SetMessageFunction(message_callback);
+
+# ---- progress -------------------------------------------------------------
+target = 0;
+shown = 0;
+fun progress_callback(duration, progress) {
+    if (progress > global.target) global.target = progress;
+}
+Plymouth.SetBootProgressFunction(progress_callback);
+
+fun draw_progress(p) {
+    local.w = Math.Int(lit_image.GetWidth() * p);
+    if (w >= 1) lit_sprite.SetImage(lit_image.Crop(0, 0, w, lit_image.GetHeight()));
+    local.b = Math.Int(fill_image.GetWidth() * p);
+    if (b >= 1) fill_sprite.SetImage(fill_image.Crop(0, 0, b, fill_image.GetHeight()));
+}
+
+# ---- animation ------------------------------------------------------------
+tick = 0;
+flip = 0;
+fun refresh_callback() {
+    global.tick = global.tick + 1;
+    local.t = global.tick / 50;
+
+    # one ring per frame keeps the rotate cost flat
+    global.flip = 1 - global.flip;
+    if (global.flip)
+        outer_sprite.SetImage(outer_image.Rotate(t * 0.10));
+    else
+        inner_sprite.SetImage(inner_image.Rotate(0 - t * 0.16));
+
+    local.pulse = 0.5 + 0.5 * Math.Sin(t * 1.2);
+    rune_sprite.SetOpacity(0.74 + 0.26 * pulse);
+    ghost_sprite.SetOpacity(0.10 + 0.14 * pulse);
+    glow_sprite.SetOpacity(0.40 + 0.60 * pulse);
+
+    # ripples: step through the pre-rendered rings
+    global.ripple_a_t = global.ripple_a_t + 1;
+    if (global.ripple_a_t >= RIPPLE_TICKS) global.ripple_a_t = 0;
+    local.fa = Math.Int(global.ripple_a_t * RIPPLE_FRAMES / RIPPLE_TICKS);
+    if (fa != global.ripple_a_shown) {
+        global.ripple_a_shown = fa;
+        ripple_a.SetImage(ripple_image[fa]);
+    }
+    global.ripple_b_t = global.ripple_b_t + 1;
+    if (global.ripple_b_t >= RIPPLE_TICKS) global.ripple_b_t = 0;
+    if (global.ripple_b_t >= 0) {
+        local.fb = Math.Int(global.ripple_b_t * RIPPLE_FRAMES / RIPPLE_TICKS);
+        if (fb != global.ripple_b_shown) {
+            global.ripple_b_shown = fb;
+            ripple_b.SetImage(ripple_image[fb]);
+            ripple_b.SetOpacity(1);
+        }
+    }
+
+    if (global.halting) {
+        # no progress signal on the way down: the line burns in over ~2s
+        if (global.target < 1) global.target = global.target + 0.01;
+    }
+    if (global.shown < global.target) {
+        global.shown = global.shown + (global.target - global.shown) * 0.08 + 0.0005;
+        if (global.shown > 1) global.shown = 1;
+        if (global.prompting == 0) draw_progress(global.shown);
+    }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
