@@ -46,6 +46,8 @@ makes it the default and rebuilds the initramfs with whichever tool the system h
 
 ## The rest of the suite
 
+Install all six pieces at once from the hub repo, [daedric-morrowind](https://github.com/numbpill3d/daedric-morrowind).
+
 | piece | repo |
 |---|---|
 | SDDM login | [daedric-morrowind-sddm](https://github.com/numbpill3d/daedric-morrowind-sddm) |
